@@ -53,9 +53,9 @@ class ResNetStage(nn.Module):
     def __init__(self, in_channels, out_channels, blocks_count):
         super(ResNetStage, self).__init__()
 
-        first_layer = ResNetElseBlock(in_channels) if in_channels == out_channels \
-                      else ResNetFirstBlock(in_channels, out_channels)
-        layers = [first_layer] + [ResNetElseBlock(out_channels) for _ in range(blocks_count - 1)]
+        first_layer = ResNetChannelConstantBlock(in_channels) if in_channels == out_channels \
+                      else ResNetChannelDoubleBlock(in_channels, out_channels)
+        layers = [first_layer] + [ResNetChannelConstantBlock(out_channels) for _ in range(blocks_count - 1)]
 
         self.layers = nn.Sequential(*layers)
 
@@ -64,10 +64,10 @@ class ResNetStage(nn.Module):
         return self.layers(input)
 
 
-class ResNetFirstBlock(nn.Module):
+class ResNetChannelDoubleBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels):
-        super(ResNetFirstBlock, self).__init__()
+        super(ResNetChannelDoubleBlock, self).__init__()
 
         self.pre_layers = nn.Sequential(
             nn.BatchNorm2d(num_features=in_channels),
@@ -91,10 +91,10 @@ class ResNetFirstBlock(nn.Module):
         return self.unskip_layers(pre_result) + self.skip_layers(pre_result)
 
 
-class ResNetElseBlock(nn.Module):
+class ResNetChannelConstantBlock(nn.Module):
 
     def __init__(self, channels):
-        super(ResNetElseBlock, self).__init__()
+        super(ResNetChannelConstantBlock, self).__init__()
 
         self.layers = nn.Sequential(
             nn.BatchNorm2d(num_features=channels),
@@ -205,7 +205,7 @@ for epoch in range(5):  # loop over the dataset multiple times
         
         # print statistics
         running_loss += loss.item()
-        if i % 10 == 0:    # print every 2000 mini-batches
+        if i % 2000 == 1999:    # print every 2000 mini-batches
             print('[%d, %5d] loss: %.3f' %
                   (epoch + 1, i + 1, running_loss / 2000))
             running_loss = 0.0
