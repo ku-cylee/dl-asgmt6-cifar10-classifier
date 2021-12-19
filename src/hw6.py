@@ -120,8 +120,10 @@ class IdentityResNet(nn.Module):
         # Implement the network
         # You can declare or define whatever variables or methods
         ########################################
+        conv_out = self.conv(x)
 
-        stg1_out = self.stage1_blk(self.stage1_blk(self.conv(x)))
+        stg1_out_first = self.stage1_blk(self.conv(x)) + conv_out
+        stg1_out = self.stage1_blk(stg1_out_first) + stg1_out_first
 
         stg2_pre = self.stage2_firstblk_pre(stg1_out)
         stg2_first = self.stage2_firstblk_unskip(stg2_pre) + self.stage2_firstblk_skip(stg2_pre)
