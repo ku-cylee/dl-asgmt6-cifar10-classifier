@@ -20,90 +20,15 @@ class IdentityResNet(nn.Module):
     def __init__(self, nblk_stage1, nblk_stage2, nblk_stage3, nblk_stage4):
         super(IdentityResNet, self).__init__()
 
-        self.nblk_stage1 = nblk_stage1
-        self.nblk_stage2 = nblk_stage2
-        self.nblk_stage3 = nblk_stage3
-        self.nblk_stage4 = nblk_stage4
-
-        self.conv = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
-
-        # Stage 1
-        self.stage1_blk = nn.Sequential(*[
-            nn.BatchNorm2d(num_features=64),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1),
-        ] * 2)
-
-        # Stage 2
-        self.stage2_firstblk_pre = nn.Sequential(
-            nn.BatchNorm2d(num_features=64),
-            nn.ReLU(),
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1),
+            ResNetStage(in_channels=64, out_channels=64, blocks_count=nblk_stage1),
+            ResNetStage(in_channels=64, out_channels=128, blocks_count=nblk_stage2),
+            ResNetStage(in_channels=128, out_channels=256, blocks_count=nblk_stage3),
+            ResNetStage(in_channels=256, out_channels=512, blocks_count=nblk_stage4),
+            nn.AvgPool2d(kernel_size=4, stride=4),
         )
 
-        self.stage2_firstblk_unskip = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=128),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
-        )
-
-        self.stage2_firstblk_skip = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=1, stride=2),
-        )
-
-        self.stage2_elseblk = nn.Sequential(*[
-            nn.BatchNorm2d(num_features=128),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
-        ] * 2)
-
-        # Stage 3
-        self.stage3_firstblk_pre = nn.Sequential(
-            nn.BatchNorm2d(num_features=128),
-            nn.ReLU(),
-        )
-
-        self.stage3_firstblk_unskip = nn.Sequential(
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=256),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
-        )
-
-        self.stage3_firstblk_skip = nn.Sequential(
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=1, stride=2),
-        )
-
-        self.stage3_elseblk = nn.Sequential(*[
-            nn.BatchNorm2d(num_features=256),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
-        ] * 2)
-
-        # Stage 4
-        self.stage4_firstblk_pre = nn.Sequential(
-            nn.BatchNorm2d(num_features=256),
-            nn.ReLU(),
-        )
-
-        self.stage4_firstblk_unskip = nn.Sequential(
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=512),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1),
-        )
-
-        self.stage4_firstblk_skip = nn.Sequential(
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=1, stride=2),
-        )
-
-        self.stage4_elseblk = nn.Sequential(*[
-            nn.BatchNorm2d(num_features=512),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1),
-        ] * 2)
-
-        self.avg_pooling = nn.AvgPool2d(kernel_size=4, stride=4)
         self.fc = nn.Linear(512, 10)
 
     ########################################
@@ -120,25 +45,69 @@ class IdentityResNet(nn.Module):
         # Implement the network
         # You can declare or define whatever variables or methods
         ########################################
-        conv_out = self.conv(x)
+        return self.fc(self.layers(x).view(-1, 512))
 
-        stg1_out_first = self.stage1_blk(self.conv(x)) + conv_out
-        stg1_out = self.stage1_blk(stg1_out_first) + stg1_out_first
 
-        stg2_pre = self.stage2_firstblk_pre(stg1_out)
-        stg2_first = self.stage2_firstblk_unskip(stg2_pre) + self.stage2_firstblk_skip(stg2_pre)
-        stg2_out = self.stage2_elseblk(stg2_first) + stg2_first
+class ResNetStage(nn.Module):
 
-        stg3_pre = self.stage3_firstblk_pre(stg2_out)
-        stg3_first = self.stage3_firstblk_unskip(stg3_pre) + self.stage3_firstblk_skip(stg3_pre)
-        stg3_out = self.stage3_elseblk(stg3_first) + stg3_first
+    def __init__(self, in_channels, out_channels, blocks_count):
+        super(ResNetStage, self).__init__()
 
-        stg4_pre = self.stage4_firstblk_pre(stg3_out)
-        stg4_first = self.stage4_firstblk_unskip(stg4_pre) + self.stage4_firstblk_skip(stg4_pre)
-        stg4_out = self.stage4_elseblk(stg4_first) + stg4_first
-        
-        out = self.fc(self.avg_pooling(stg4_out).view(-1, 512))
-        return out
+        first_layer = ResNetElseBlock(in_channels) if in_channels == out_channels \
+                      else ResNetFirstBlock(in_channels, out_channels)
+        layers = [first_layer] + [ResNetElseBlock(out_channels) for _ in range(blocks_count - 1)]
+
+        self.layers = nn.Sequential(*layers)
+
+
+    def forward(self, input):
+        return self.layers(input)
+
+
+class ResNetFirstBlock(nn.Module):
+
+    def __init__(self, in_channels, out_channels):
+        super(ResNetFirstBlock, self).__init__()
+
+        self.pre_layers = nn.Sequential(
+            nn.BatchNorm2d(num_features=in_channels),
+            nn.ReLU(),
+        )
+
+        self.unskip_layers = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=out_channels),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=1),
+        )
+
+        self.skip_layers = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=2),
+        )
+
+
+    def forward(self, input):
+        pre_result = self.pre_layers(input)
+        return self.unskip_layers(pre_result) + self.skip_layers(pre_result)
+
+
+class ResNetElseBlock(nn.Module):
+
+    def __init__(self, channels):
+        super(ResNetElseBlock, self).__init__()
+
+        self.layers = nn.Sequential(
+            nn.BatchNorm2d(num_features=channels),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features=channels),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1),
+        )
+
+    def forward(self, input):
+        return self.layers(input) + input
+
 
 ########################################
 # Q1. set device
@@ -198,7 +167,7 @@ criterion = nn.CrossEntropyLoss()
 # Complete below to use SGD with momentum (alpha= 0.9)
 # set proper learning rate
 ########################################
-optimizer = torch.optim.SGD(model.parameters(), lr=1e-2, momentum=.9)
+optimizer = optim.SGD(model.parameters(), lr=1e-2, momentum=.9)
 
 # start training
 t_start = time.time()
@@ -236,7 +205,7 @@ for epoch in range(5):  # loop over the dataset multiple times
         
         # print statistics
         running_loss += loss.item()
-        if i % 2000 == 1999:    # print every 2000 mini-batches
+        if i % 10 == 0:    # print every 2000 mini-batches
             print('[%d, %5d] loss: %.3f' %
                   (epoch + 1, i + 1, running_loss / 2000))
             running_loss = 0.0
@@ -273,5 +242,3 @@ for i in range(10):
 
 # overall accuracy
 print('Overall Accurracy: ', (sum(class_correct)/sum(class_total))*100, '%')
-
-
