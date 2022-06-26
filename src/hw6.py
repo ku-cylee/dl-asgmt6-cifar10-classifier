@@ -8,13 +8,16 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import ssl
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 ########################################
 # You can define whatever classes if needed
 ########################################
 
 class IdentityResNet(nn.Module):
-    
+
     # __init__ takes 4 parameters
     # nblk_stage1: number of blocks in stage 1, nblk_stage2.. similar
     def __init__(self, nblk_stage1, nblk_stage2, nblk_stage3, nblk_stage4):
@@ -39,7 +42,7 @@ class IdentityResNet(nn.Module):
     ########################################
     # You can define whatever methods
     ########################################
-    
+
     def forward(self, x):
         ########################################
         # Implement the network
@@ -173,36 +176,36 @@ optimizer = optim.SGD(model.parameters(), lr=1e-2, momentum=.9)
 t_start = time.time()
 
 for epoch in range(5):  # loop over the dataset multiple times
-    
+
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data[0].to(dev), data[1].to(dev)
-        
+
         ########################################
         # Q5. make sure gradients are zero!
         # zero the parameter gradients
         ########################################
         model.zero_grad()
-        
+
         ########################################
         # Q6. perform forward pass
         ########################################
         outputs = model.forward(inputs)
-        
+
         # set loss
         loss = criterion(outputs, labels)
-        
+
         ########################################
         # Q7. perform backprop
         ########################################
         loss.backward()
-        
+
         ########################################
         # Q8. take a SGD step
         ########################################
         optimizer.step()
-        
+
         # print statistics
         running_loss += loss.item()
         if i % 2000 == 1999:    # print every 2000 mini-batches
